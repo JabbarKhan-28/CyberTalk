@@ -43,6 +43,11 @@ export default function KeyExchangeScreen() {
   const finish = async () => {
       try {
         const chatId = await ChatService.createChat(userId as string);
+        
+        // Mark the chat as secure in Firestore
+        // Ideally this happens after actual cryptographic exchange
+        await ChatService.setChatSecure(chatId, true);
+
         router.replace(`/chat/${chatId}?name=${name}` as Href);
       } catch (error) {
           console.error("Failed to create chat", error);

@@ -40,5 +40,29 @@ export const AuthService = {
 
     getCurrentUser: () => {
         return auth.currentUser;
+    },
+
+    updateProfilePicture: async (uri: string) => {
+        const user = auth.currentUser;
+        if (!user) throw new Error("No user logged in");
+
+        try {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            
+            const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
+            const { storage } = require('@/firebaseConfig');
+
+            const storageRef = ref(storage, `profile_images/${user.uid}`);
+            await uploadBytes(storageRef, blob);
+            
+            const downloadURL = await getDownloadURL(storageRef);
+            await updateProfile(user, { photoURL: downloadURL });
+            
+            return downloadURL;
+        } catch (error) {
+            console.error("Error uploading profile picture:", error);
+            throw error;
+        }
     }
 };

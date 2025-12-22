@@ -9,6 +9,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Lock, Paperclip, Send } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useToast } from '@/components/Toast';
 
 export function generateStaticParams() {
   return [];
@@ -21,6 +22,7 @@ export default function ChatDetailScreen() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+  const toast = useToast();
 
   useEffect(() => {
      if (!id) return;
@@ -94,7 +96,10 @@ export default function ChatDetailScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.attachButton}>
+          <TouchableOpacity 
+            style={styles.attachButton}
+            onPress={() => toast.show('File attachment coming soon', 'info')}
+          >
             <Paperclip size={20} color={Colors.dark.icon} />
           </TouchableOpacity>
           

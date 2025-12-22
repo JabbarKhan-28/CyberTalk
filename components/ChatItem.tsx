@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import { ChatService } from '@/services/chat';
 import { Href, useRouter } from 'expo-router';
-import { Alert, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { CyberText } from './StyledText';
 import { useToast } from './Toast';
 
@@ -12,37 +12,15 @@ interface ChatItemProps {
   time: string;
   unread?: number;
   online?: boolean;
+  onDelete?: (id: string, name: string) => void;
 }
 
-export function ChatItem({ id, name, lastMessage, time, unread = 0, online = false }: ChatItemProps) {
+export function ChatItem({ id, name, lastMessage, time, unread = 0, online = false, onDelete }: ChatItemProps) {
   const router = useRouter();
   const { show } = useToast();
   
   const handleDelete = () => {
-    const deleteAction = async () => {
-        try {
-            await ChatService.deleteChat(id);
-            show('Chat deleted', 'success');
-        } catch (error) {
-            console.error(error);
-            show('Failed to delete chat', 'error');
-        }
-    };
-
-    if (Platform.OS === 'web') {
-        if (confirm(`Delete chat with ${name}?`)) {
-            deleteAction();
-        }
-    } else {
-        Alert.alert(
-            "Delete Chat",
-            `Are you sure you want to delete the chat with ${name}?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: deleteAction }
-            ]
-        );
-    }
+    onDelete?.(id, name);
   };
 
   return (

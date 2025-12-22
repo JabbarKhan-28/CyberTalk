@@ -10,11 +10,18 @@ import { MessageSquare, Plus } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { CyberAlert } from '@/components/CyberAlert';
+import { useToast } from '@/components/Toast';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
+
+  // Alert State
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
 
   useEffect(() => {
     // We need to wait for the auth state to be ready
@@ -62,8 +69,38 @@ export default function HomeScreen() {
     return () => unsubscribeAuth();
   }, []);
 
+  const handleDeleteRequest = (id: string, name: string) => {
+      setDeleteTarget({ id, name });
+      setAlertVisible(true);
+  };
+
+  const confirmDelete = async () => {
+      if (!deleteTarget) return;
+
+      try {
+          await ChatService.deleteChat(deleteTarget.id);
+          toast.show(`Chat with ${deleteTarget.name} deleted`, 'success');
+      } catch (error) {
+          console.error(error);
+          toast.show('Failed to delete chat', 'error');
+      } finally {
+          setAlertVisible(false);
+          setDeleteTarget(null);
+      }
+  };
+
   return (
     <ScreenWrapper style={styles.container}>
+      <CyberAlert
+        visible={alertVisible}
+        title="Delete Chat"
+        message={`Are you sure you want to delete the conversation with ${deleteTarget?.name}? This cannot be undone.`}
+        type="error"
+        confirmText="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setAlertVisible(false)}
+      />
+
       <View style={styles.header}>
         <View style={styles.titleRow}>
             <MessageSquare color={Colors.dark.primary} size={28} />
@@ -74,7 +111,12 @@ export default function HomeScreen() {
       <FlatList
         data={chats}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => <ChatItem {...item} />}
+        renderItem={({ item }) => (
+            <ChatItem 
+                {...item} 
+                onDelete={handleDeleteRequest}
+            />
+        )}
         contentContainerStyle={styles.list}
         ListEmptyComponent={() => (
             !loading ? (

@@ -1,4 +1,5 @@
 import { Colors } from '@/constants/Colors';
+import { AlertTriangle, CheckCircle, Info } from 'lucide-react-native';
 import React, { createContext, useCallback, useContext, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,16 +43,37 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     setVisible(false);
   }, []);
 
+  const getIcon = () => {
+      switch (type) {
+          case 'success': return <CheckCircle size={24} color={Colors.dark.success} />;
+          case 'error': return <AlertTriangle size={24} color={Colors.dark.error} />;
+          default: return <Info size={24} color={Colors.dark.primary} />;
+      }
+  };
+
+  const getBorderColor = () => {
+      switch (type) {
+          case 'success': return Colors.dark.success;
+          case 'error': return Colors.dark.error;
+          default: return Colors.dark.primary;
+      }
+  };
+
   return (
     <ToastContext.Provider value={{ show, hide }}>
       {children}
       {visible && (
         <View style={[
             styles.container, 
-            { top: insets.top + 10 },
-            type === 'success' && styles.success,
-            type === 'error' && styles.error,
+            { 
+                top: insets.top + 10,
+                borderColor: getBorderColor(),
+                shadowColor: getBorderColor(),
+            }
         ]}>
+          <View style={styles.iconContainer}>
+              {getIcon()}
+          </View>
           <CyberText variant="body" style={styles.text}>{message}</CyberText>
         </View>
       )}
@@ -65,38 +87,33 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     padding: 15,
-    borderRadius: 8,
-    backgroundColor: Colors.dark.surface,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)', // Dark glass
     borderWidth: 1,
-    borderColor: Colors.dark.border,
+    flexDirection: 'row',
+    alignItems: 'center',
     zIndex: 9999,
     ...Platform.select({
       web: {
-        boxShadow: '0px 2px 4px rgba(0,0,0,0.3)',
+        boxShadow: '0 0 15px rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(10px)',
       },
       default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
+        elevation: 10,
       },
     }),
-    alignItems: 'center',
   },
-  success: {
-    backgroundColor: 'rgba(0, 255, 157, 0.9)',
-    borderColor: Colors.dark.success,
-  },
-  error: {
-    backgroundColor: 'rgba(255, 0, 85, 0.9)',
-    borderColor: Colors.dark.error,
+  iconContainer: {
+      marginRight: 12,
   },
   text: {
-    color: '#000', // Black text usually reads better on bright green/red backgrounds, or white if backgrounds are dark. 
-                   // Given the rgba above are high opacity, black might be safer or bold white.
-                   // Let's stick to what contrasts well.
-    fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#FFF',
+    flex: 1,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   }
 });

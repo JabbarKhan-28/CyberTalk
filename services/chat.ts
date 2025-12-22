@@ -1,4 +1,5 @@
 import { auth, db } from '@/firebaseConfig';
+import { EncryptionService } from './encryption';
 import { User } from '@/types';
 import {
     addDoc,
@@ -81,17 +82,20 @@ export const ChatService = {
         const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) throw new Error("Not logged in");
 
+        // Encrypt the message before sending
+        const encryptedText = EncryptionService.encrypt(text);
+
         const messagesRef = collection(db, 'chats', chatId, 'messages');
         await addDoc(messagesRef, {
-            text,
+            text: encryptedText,
             senderId: currentUserId,
             timestamp: serverTimestamp(),
         });
 
-        // Update last message in chat doc
+        // Update last message in chat doc (also encrypted)
         const chatRef = doc(db, 'chats', chatId);
         await setDoc(chatRef, {
-            lastMessage: text,
+            lastMessage: encryptedText,
             lastMessageTime: serverTimestamp(), 
         }, { merge: true });
     },
@@ -102,10 +106,15 @@ export const ChatService = {
         const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
         return onSnapshot(q, (snapshot) => {
-            const messages = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            const messages = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    // Decrypt the message on the fly
+                    text: EncryptionService.decrypt(data.text)
+                };
+            });
             callback(messages);
         });
     },
@@ -119,10 +128,15 @@ export const ChatService = {
         const q = query(chatsRef, where('participants', 'array-contains', currentUserId));
 
         return onSnapshot(q, (snapshot) => {
-            const chats = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            const chats = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    // Decrypt the last message preview
+                    lastMessage: EncryptionService.decrypt(data.lastMessage)
+                };
+            });
             callback(chats);
         });
     },
@@ -144,5 +158,13 @@ export const ChatService = {
 
         // 2. Delete the chat document
         await deleteDoc(doc(db, 'chats', chatId));
+    },
+
+    setChatSecure: async (chatId: string, secure: boolean) => {
+        const chatRef = doc(db, 'chats', chatId);
+        await setDoc(chatRef, {
+            isSecure: secure,
+            securityTimestamp: serverTimestamp()
+        }, { merge: true });
     }
 };
