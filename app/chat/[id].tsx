@@ -10,6 +10,10 @@ import { ArrowLeft, Lock, Paperclip, Send } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 
+export function generateStaticParams() {
+  return [];
+}
+
 export default function ChatDetailScreen() {
   const { id, name } = useLocalSearchParams(); 
   const router = useRouter();
