@@ -1,98 +1,142 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { ChatItem } from '@/components/ChatItem';
+import { ScreenWrapper } from '@/components/ScreenWrapper';
+import { auth } from '@/firebaseConfig';
+import { CyberText } from '@/components/StyledText';
+import { Colors } from '@/constants/Colors';
+import { AuthService } from '@/services/auth';
+import { ChatService } from '@/services/chat';
+import { useRouter } from 'expo-router';
+import { MessageSquare, Plus } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { User } from 'firebase/auth';
+import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
+  const [chats, setChats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    // We need to wait for the auth state to be ready
+    const unsubscribeAuth = auth.onAuthStateChanged((user: User | null) => {
+        if (user) {
+            // User is signed in, listen to chats
+            const unsubscribeChats = ChatService.listenToChats(async (updatedChats) => {
+                const currentUserId = user.uid;
+                
+                const formattedChats = await Promise.all(updatedChats.map(async (chat) => {
+                    const otherUserId = chat.participants.find((id: string) => id !== currentUserId);
+                    let otherUserName = 'Unknown User';
+                    let otherUserOnline = false;
+        
+                    if (otherUserId) {
+                        const userProfile = await ChatService.getUser(otherUserId);
+                        if (userProfile) {
+                            otherUserName = userProfile.name || userProfile.email || 'User';
+                        }
+                    }
+                    
+                    return {
+                        id: chat.id,
+                        name: otherUserName,
+                        lastMessage: chat.lastMessage || 'No messages yet',
+                        time: chat.lastMessageTime?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 'Now',
+                        unread: 0,
+                        online: otherUserOnline
+                    };
+                }));
+                
+                setChats(formattedChats);
+                setLoading(false);
+            });
+
+            // Cleanup chat listener when auth state changes or component unmounts
+            return () => unsubscribeChats();
+        } else {
+            // User is signed out
+            setChats([]);
+            setLoading(false);
+        }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  return (
+    <ScreenWrapper style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.titleRow}>
+            <MessageSquare color={Colors.dark.primary} size={28} />
+            <CyberText variant="h1" style={styles.title} glow>Messages</CyberText>
+        </View>
+      </View>
+
+      <FlatList
+        data={chats}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => <ChatItem {...item} />}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={() => (
+            !loading ? (
+                <View style={styles.emptyState}>
+                    <CyberText variant="body" style={{color: Colors.dark.icon, textAlign: 'center'}}>
+                        No active chats. Start a new secure conversation!
+                    </CyberText>
+                </View>
+            ) : null
+        )}
+      />
+
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => router.push('/(tabs)/contacts')}
+        activeOpacity={0.8}
+      >
+        <Plus color="#000" size={30} />
+      </TouchableOpacity>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  header: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 15,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  title: {
+    fontSize: 34, 
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  list: {
+    paddingBottom: 100,
+  },
+  emptyState: {
+      marginTop: 100,
+      padding: 40,
+      alignItems: 'center',
+      opacity: 0.7
+  },
+  fab: {
     position: 'absolute',
-  },
+    bottom: 90,
+    right: 30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.dark.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.dark.primary,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
+  }
 });
