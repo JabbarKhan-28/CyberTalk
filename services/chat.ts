@@ -1,6 +1,6 @@
 import { auth, db } from '@/firebaseConfig';
 import { EncryptionService } from './encryption';
-import { User } from '@/types';
+import { User, Message, Chat } from '@/types';
 import {
     addDoc,
     collection,
@@ -101,7 +101,7 @@ export const ChatService = {
     },
 
     // Listen to messages in a chat
-    listenToMessages: (chatId: string, callback: (msgs: any[]) => void) => {
+    listenToMessages: (chatId: string, callback: (msgs: Message[]) => void) => {
         const messagesRef = collection(db, 'chats', chatId, 'messages');
         const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
@@ -113,14 +113,14 @@ export const ChatService = {
                     ...data,
                     // Decrypt the message on the fly
                     text: EncryptionService.decrypt(data.text)
-                };
+                } as Message;
             });
             callback(messages);
         });
     },
 
     // Listen to my chats
-    listenToChats: (callback: (chats: any[]) => void) => {
+    listenToChats: (callback: (chats: Chat[]) => void) => {
         const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) return () => {};
 
@@ -135,7 +135,7 @@ export const ChatService = {
                     ...data,
                     // Decrypt the last message preview
                     lastMessage: EncryptionService.decrypt(data.lastMessage)
-                };
+                } as Chat;
             });
             callback(chats);
         });

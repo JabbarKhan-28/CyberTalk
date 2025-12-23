@@ -84,7 +84,7 @@ export const CyberAlert = ({
                              <Button 
                                 title="Close" 
                                 variant="outline" 
-                                onPress={onCancel} 
+                                onPress={onCancel || (() => {})} 
                                 style={{ flex: 1 }}
                             />
                         )}

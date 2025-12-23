@@ -5,15 +5,25 @@ export const generateOTP = () => {
 };
 
 export const sendOTP = async (email: string, otp: string, name: string) => {
-    // Debug logging for keys
+    // Trim email to remove accidental whitespace
+    const cleanEmail = email.trim();
+    
+    // Debug logging for keys and inputs
+    console.log('[OTP Debug] input email:', email);
+    console.log('[OTP Debug] cleaned email:', cleanEmail);
     console.log('[OTP Debug] Service ID present:', !!Config.EMAILJS_SERVICE_ID);
     console.log('[OTP Debug] Template ID present:', !!Config.EMAILJS_TEMPLATE_ID);
     console.log('[OTP Debug] Public Key present:', !!Config.EMAILJS_PUBLIC_KEY);
 
+    if (!cleanEmail) {
+        console.error('[OTP Debug] Email is empty after trimming.');
+        throw new Error('Email address is missing.');
+    }
+
     // Check if keys are placeholders or empty
     if (!Config.EMAILJS_PUBLIC_KEY || Config.EMAILJS_PUBLIC_KEY.includes('placeholder')) {
         console.warn('EmailJS keys are missing or invalid. OTP will be printed to console only.');
-        console.log(`[MOCK EMAIL] To: ${email}, OTP: ${otp}`);
+        console.log(`[MOCK EMAIL] To: ${cleanEmail}, OTP: ${otp}`);
         return true; 
     }
 
@@ -22,9 +32,13 @@ export const sendOTP = async (email: string, otp: string, name: string) => {
         template_id: Config.EMAILJS_TEMPLATE_ID,
         user_id: Config.EMAILJS_PUBLIC_KEY,
         template_params: {
-            to_email: email,       // Changed from email
+            to_email: cleanEmail,
+            email: cleanEmail, // MATCHING THE SCREENSHOT: {{email}}
             to_name: name,
-            otp_code: otp,         // Changed from passcode
+            otp_code: otp,
+            passcode: otp, // MATCHING THE SCREENSHOT: {{passcode}}
+            message: otp,
+            reply_to: 'support@cybertalk.app',
             app_name: "CyberTalk"
         }
     };
@@ -35,6 +49,7 @@ export const sendOTP = async (email: string, otp: string, name: string) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                // Origin header removed to prevent CORS errors
             },
             body: JSON.stringify(data),
         });

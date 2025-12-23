@@ -11,7 +11,31 @@ export const unstable_settings = {
 
 import { ToastProvider } from '@/components/Toast';
 
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
+  useEffect(() => {
+    // Hide splash screen after a short delay or when resources are loaded
+    const hideSplash = async () => {
+        try {
+            // Check for fonts or auth initialization here if needed
+            // For now, just hide it after mount
+            // Ensure we wait long enough for navigation to mount
+            await new Promise(resolve => setTimeout(resolve, 1000)); 
+        } catch (e) {
+            console.warn("Splash screen error:", e);
+        } finally {
+            // ALWAYS hide splash screen, even if initialization failed
+            await SplashScreen.hideAsync();
+        }
+    };
+    hideSplash();
+  }, []);
+
   return (
     <ThemeProvider value={DarkTheme}>
       <ToastProvider>

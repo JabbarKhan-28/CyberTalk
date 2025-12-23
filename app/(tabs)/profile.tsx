@@ -1,4 +1,5 @@
 import { CyberAlert } from '@/components/CyberAlert';
+import { CyberCard } from '@/components/CyberCard';
 import { Button } from '@/components/Button';
 import { ScreenWrapper } from '@/components/ScreenWrapper';
 import { CyberText } from '@/components/StyledText';
@@ -38,13 +39,28 @@ export default function ProfileScreen() {
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.5,
+            base64: true, // Enable base64 for Web CORS fix
         });
 
         if (!result.canceled && result.assets[0].uri) {
+            console.log("Picking Image:", result.assets[0].uri);
             toast.show('Uploading...', 'info');
-            const newPhotoURL = await AuthService.updateProfilePicture(result.assets[0].uri);
-            setUser({ ...user, photoURL: newPhotoURL });
-            toast.show('Profile picture updated!', 'success');
+            
+            // Pass base64 data if available
+            const newPhotoURL = await AuthService.updateProfilePicture(
+                result.assets[0].uri, 
+                result.assets[0].base64
+            );
+            console.log("New Photo URL:", newPhotoURL);
+            
+            if (newPhotoURL) {
+                // Force update state with new URL
+                setUser((prevUser: any) => ({ ...prevUser, photoURL: newPhotoURL }));
+                toast.show('Profile picture updated!', 'success');
+            } else {
+                console.error("New Photo URL is empty/null");
+                toast.show('Failed to get photo URL', 'error');
+            }
         }
     } catch (error) {
         console.error(error);
@@ -108,64 +124,72 @@ export default function ProfileScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-           <TouchableOpacity onPress={handleUpdateAvatar} style={styles.avatarContainer}>
-               {user?.photoURL ? (
-                   <Image source={{ uri: user.photoURL }} style={styles.avatarImage} />
-               ) : (
-                   <View style={styles.avatarPlaceholder}>
-                       <CyberText variant="h1">{user?.displayName?.[0] || '?'}</CyberText>
-                   </View>
-               )}
-               <View style={styles.editIcon}>
-                   <Camera size={16} color="#fff" />
-               </View>
-           </TouchableOpacity>
-           
-           <CyberText variant="h2" style={styles.name}>{user?.displayName || 'User'}</CyberText>
-           <CyberText variant="body" style={styles.email}>{user?.email || 'No Email'}</CyberText>
-           
-           <View style={styles.badge}>
-                <Shield size={14} color="#000" />
-                <CyberText variant="caption" style={styles.badgeText}>SECURE ID Verified</CyberText>
-           </View>
-        </View>
-
-        <View style={styles.section}>
-            <CyberText variant="label" style={styles.sectionTitle}>ACCOUNT</CyberText>
+        <CyberCard variant="glowing" style={styles.card}>
+            <View style={styles.header}>
+            <TouchableOpacity onPress={handleUpdateAvatar} style={styles.avatarContainer}>
+                {user?.photoURL ? (
+                    <Image 
+                        source={{ uri: user.photoURL }} 
+                        style={styles.avatarImage} 
+                        cachePolicy="none"
+                        onError={(e) => console.error("Image Load Error:", e)}
+                        onLoad={() => console.log("Image Loaded Success:", user.photoURL)}
+                    />
+                ) : (
+                    <View style={styles.avatarPlaceholder}>
+                        <CyberText variant="h1">{user?.displayName?.[0] || '?'}</CyberText>
+                    </View>
+                )}
+                <View style={styles.editIcon}>
+                    <Camera size={16} color="#fff" />
+                </View>
+            </TouchableOpacity>
             
-            <Button
-                title="Security Settings"
-                variant="outline"
-                onPress={() => router.push('/settings/security')}
-                style={styles.button}
-            />
-        </View>
-
-        <View style={styles.section}>
-            <CyberText variant="label" style={styles.sectionTitle}>DANGER ZONE</CyberText>
+            <CyberText variant="h2" style={styles.name}>{user?.displayName || 'User'}</CyberText>
+            <CyberText variant="body" style={styles.email}>{user?.email || 'No Email'}</CyberText>
             
-            <Button
-                title="Regenerate My Keys"
-                variant="secondary"
-                onPress={handleRegenerateKeys}
-                style={styles.button}
-            />
+            <View style={styles.badge}>
+                    <Shield size={14} color="#000" />
+                    <CyberText variant="caption" style={styles.badgeText}>SECURE ID Verified</CyberText>
+            </View>
+            </View>
 
-            <Button
-                title="Clear Secure Storage"
-                variant="secondary"
-                onPress={handleClearStorage}
-                style={styles.button}
-            />
+            <View style={styles.section}>
+                <CyberText variant="label" style={styles.sectionTitle}>ACCOUNT</CyberText>
+                
+                <Button
+                    title="Security Settings"
+                    variant="outline"
+                    onPress={() => router.push('/settings/security')}
+                    style={styles.button}
+                />
+            </View>
 
-            <Button
-                title="Logout"
-                variant="danger"
-                onPress={handleLogout}
-                style={[styles.button, { marginTop: 20 }]}
-            />
-        </View>
+            <View style={styles.section}>
+                <CyberText variant="label" style={styles.sectionTitle}>DANGER ZONE</CyberText>
+                
+                <Button
+                    title="Regenerate My Keys"
+                    variant="secondary"
+                    onPress={handleRegenerateKeys}
+                    style={styles.button}
+                />
+
+                <Button
+                    title="Clear Secure Storage"
+                    variant="secondary"
+                    onPress={handleClearStorage}
+                    style={styles.button}
+                />
+
+                <Button
+                    title="Logout"
+                    variant="danger"
+                    onPress={handleLogout}
+                    style={[styles.button, { marginTop: 20 }]}
+                />
+            </View>
+        </CyberCard>
         
         <View style={styles.about}>
             <CyberText variant="caption">CyberTalk v1.0.0</CyberText>
@@ -183,6 +207,13 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 40,
+    alignItems: 'center',
+  },
+  card: {
+    width: '100%',
+    maxWidth: 500,
+    paddingHorizontal: 20,
+    paddingVertical: 30,
   },
   header: {
     alignItems: 'center',
@@ -226,10 +257,12 @@ const styles = StyleSheet.create({
   },
   name: {
     marginBottom: 5,
+    textAlign: 'center',
   },
   email: {
     color: Colors.dark.icon,
     marginBottom: 10,
+    textAlign: 'center',
   },
   badge: {
     flexDirection: 'row',
@@ -246,10 +279,12 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 30,
+    width: '100%',
   },
   sectionTitle: {
     marginBottom: 10,
     color: Colors.dark.icon,
+    marginLeft: 4,
   },
   button: {
     marginBottom: 10,

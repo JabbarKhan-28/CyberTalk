@@ -1,4 +1,5 @@
 import { Button } from '@/components/Button';
+import { CyberCard } from '@/components/CyberCard';
 import { Input } from '@/components/Input';
 import { ScreenWrapper } from '@/components/ScreenWrapper';
 import { CyberText } from '@/components/StyledText';
@@ -26,6 +27,7 @@ export default function RegisterScreen() {
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [userOtp, setUserOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
   // Step 1: Validate and Send OTP
   const handleVerifyEmail = async () => {
@@ -43,16 +45,35 @@ export default function RegisterScreen() {
     try {
         const otp = generateOTP();
         setGeneratedOtp(otp);
-        console.log("GENERATED OTP:", otp); // For debugging if email fails
+        console.log("GENERATED OTP:", otp); 
         
         await sendOTP(email, otp, name);
         
         toast.show(`Verification code sent to ${email}`, 'success');
         setStep(1);
-    } catch (error) {
-        toast.show('Failed to send OTP. Please check your email.', 'error');
+    } catch (error: any) {
+        console.error("OTP Failure:", error);
+        // Clean error message
+        toast.show(error.message || 'Failed to send OTP.', 'error');
     } finally {
         setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setResending(true);
+    try {
+        const otp = generateOTP();
+        setGeneratedOtp(otp);
+        console.log("RESEND OTP:", otp);
+        
+        await sendOTP(email, otp, name);
+        toast.show(`New code sent!`, 'success');
+    } catch (error: any) {
+         console.error("Resend Failure:", error);
+         toast.show(error.message || 'Failed to resend code.', 'error');
+    } finally {
+        setResending(false);
     }
   };
 
@@ -78,10 +99,11 @@ export default function RegisterScreen() {
   return (
     <ScreenWrapper>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => step === 1 ? setStep(0) : router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => step === 1 ? setStep(0) : router.back()} style={styles.backButton}>
             <ArrowLeft color={Colors.dark.text} size={24} />
-          </TouchableOpacity>
+        </TouchableOpacity>
+
+        <View style={styles.header}>
           <CyberText variant="h1" glow>{step === 0 ? 'Create Account' : 'Verify Email'}</CyberText>
           <CyberText variant="body" style={styles.subtitle}>
               {step === 0 ? 'Join the secure network.' : `Enter the 6-digit code sent to ${email}`}
@@ -89,7 +111,7 @@ export default function RegisterScreen() {
         </View>
 
         {step === 0 ? (
-            <View style={styles.form}>
+            <CyberCard variant="glowing" style={styles.formCard}>
                 <Input
                     label="Display Name"
                     placeholder="Neo"
@@ -132,9 +154,9 @@ export default function RegisterScreen() {
                     loading={loading}
                     style={{ marginTop: 20 }}
                 />
-            </View>
+            </CyberCard>
         ) : (
-            <View style={styles.form}>
+            <CyberCard variant="glowing" style={styles.formCard}>
                 <View style={styles.otpContainer}>
                     <CheckCircle size={40} color={Colors.dark.primary} style={{marginBottom: 20}} />
                     <Input
@@ -156,12 +178,12 @@ export default function RegisterScreen() {
                     variant="success"
                     style={{ marginTop: 20 }}
                 />
-                 <TouchableOpacity onPress={() => handleVerifyEmail()} disabled={loading}>
-                    <CyberText variant="caption" style={{alignSelf: 'center', marginTop: 20, color: Colors.dark.primary}}>
-                        Resend Code
+                 <TouchableOpacity onPress={handleResendOTP} disabled={resending || loading}>
+                    <CyberText variant="caption" style={{alignSelf: 'center', marginTop: 20, color: (resending || loading) ? Colors.dark.icon : Colors.dark.primary}}>
+                        {resending ? 'Resending Code...' : 'Resend Code'}
                     </CyberText>
                 </TouchableOpacity>
-            </View>
+            </CyberCard>
         )}
 
         <View style={styles.footer}>
@@ -179,21 +201,29 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     flexGrow: 1, 
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     marginTop: 20,
     marginBottom: 30,
+    width: '100%',
+    maxWidth: 400,
   },
   backButton: {
-    marginBottom: 20,
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    zIndex: 10,
   },
   subtitle: {
     opacity: 0.7,
     marginTop: 5,
   },
-  form: {
+  formCard: {
     marginBottom: 20,
-    flex: 1,
+    width: '100%',
+    maxWidth: 400,
   },
   otpContainer: {
       alignItems: 'center',
